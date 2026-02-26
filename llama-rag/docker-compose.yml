@@ -1,0 +1,28 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6334:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      LLAMA_API_KEY: ${LLAMA_API_KEY}
+      LLAMA_BASE_URL: ${LLAMA_BASE_URL}
+      LLAMA_MODEL: ${LLAMA_MODEL}
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION}
+      VECTOR_SIZE: ${VECTOR_SIZE}
+      CHUNK_SIZE: ${CHUNK_SIZE}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP}
+      BATCH_SIZE: ${BATCH_SIZE}
+    depends_on:
+      - qdrant
+
+volumes:
+  qdrant_data:

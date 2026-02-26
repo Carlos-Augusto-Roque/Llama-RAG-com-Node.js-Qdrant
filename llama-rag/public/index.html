@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RAG PDF (básico)</title>
+    <style>
+      body {
+        font-family: system-ui, Arial;
+        margin: 0;
+        background: #0b1220;
+        color: #e6e9f2;
+      }
+      .wrap {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      .box {
+        border: 1px solid #223055;
+        background: #111a2e;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        padding: 12px;
+        border-bottom: 1px solid #223055;
+        align-items: center;
+      }
+      input[type="file"] {
+        color: #e6e9f2;
+      }
+      .chat {
+        height: 62vh;
+        overflow: auto;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .msg {
+        max-width: 82%;
+        padding: 10px 12px;
+        border-radius: 12px;
+        white-space: pre-wrap;
+      }
+      .user {
+        align-self: flex-end;
+        background: #2563eb;
+      }
+      .bot {
+        align-self: flex-start;
+        background: #1f2a44;
+        border: 1px solid #2b3a66;
+      }
+      .bottom {
+        display: flex;
+        gap: 10px;
+        padding: 12px;
+        border-top: 1px solid #223055;
+      }
+      textarea {
+        flex: 1;
+        resize: none;
+        height: 46px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid #2b3a66;
+        background: #0b1220;
+        color: #e6e9f2;
+      }
+      button {
+        border: none;
+        border-radius: 10px;
+        background: #22c55e;
+        font-weight: 800;
+        cursor: pointer;
+        padding: 10px 14px;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .status {
+        font-size: 12px;
+        opacity: 0.8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="box">
+        <div class="row">
+          <input id="pdf" type="file" accept="application/pdf" multiple />
+          <button id="upload">Enviar PDF</button>
+          <span id="status" class="status">Nenhum PDF enviado.</span>
+        </div>
+
+        <div id="chat" class="chat"></div>
+
+        <div class="bottom">
+          <textarea
+            id="q"
+            placeholder="Pergunte sobre o PDF... (Enter envia)"
+          ></textarea>
+          <button id="ask">Perguntar</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const pdfEl = document.getElementById("pdf");
+      const uploadBtn = document.getElementById("upload");
+      const statusEl = document.getElementById("status");
+
+      const chatEl = document.getElementById("chat");
+      const qEl = document.getElementById("q");
+      const askBtn = document.getElementById("ask");
+
+      function add(role, text) {
+        const div = document.createElement("div");
+        div.className = "msg " + (role === "user" ? "user" : "bot");
+        div.textContent = text;
+        chatEl.appendChild(div);
+        chatEl.scrollTop = chatEl.scrollHeight;
+      }
+
+      uploadBtn.addEventListener("click", async () => {
+        const files = pdfEl.files;
+        if (!files.length) return alert("Selecione ao menos um PDF.");
+
+        uploadBtn.disabled = true;
+        statusEl.textContent = "Enviando e indexando PDFs...";
+
+        try {
+          for (let file of files) {
+            const fd = new FormData();
+            fd.append("file", file);
+
+            const res = await fetch("/pdf", { method: "POST", body: fd });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Erro no upload");
+
+            add(
+              "assistant",
+              `PDF "${file.name}" indexado ✅ (${data.chunksIndexed} trechos)`,
+            );
+          }
+
+          statusEl.textContent = "Todos os PDFs indexados com sucesso.";
+        } catch (e) {
+          statusEl.textContent = "Falha ao indexar PDFs ❌";
+          alert(e.message || e);
+        } finally {
+          uploadBtn.disabled = false;
+        }
+      });
+
+      async function ask() {
+        const question = qEl.value.trim();
+        if (!question) return;
+
+        qEl.value = "";
+        add("user", question);
+
+        askBtn.disabled = true;
+        const loading = document.createElement("div");
+        loading.className = "msg bot";
+        loading.textContent = "Buscando no PDF e respondendo...";
+        chatEl.appendChild(loading);
+        chatEl.scrollTop = chatEl.scrollHeight;
+
+        try {
+          const res = await fetch("/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question, topK: 5 }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Erro no /ask");
+
+          loading.textContent = data.answer || "(sem resposta)";
+        } catch (e) {
+          loading.textContent = "Erro: " + (e.message || e);
+        } finally {
+          askBtn.disabled = false;
+          qEl.focus();
+        }
+      }
+
+      askBtn.addEventListener("click", ask);
+      qEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          ask();
+        }
+      });
+
+      add("assistant", "1) Envie um PDF  2) Faça perguntas sobre ele.");
+    </script>
+  </body>
+</html>
