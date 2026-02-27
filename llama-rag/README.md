@@ -1,188 +1,129 @@
-# 🧠 Llama-RAG — Retrieval Augmented Generation com Node.js + Qdrant
+# 🧠 Llama-RAG — Retrieval Augmented Generation Profissional (Node.js + Qdrant)
 
-Implementação de um backend RAG (Retrieval Augmented Generation) para consulta inteligente de documentos PDF utilizando busca vetorial e LLM.
+Implementação de um backend e frontend RAG (Retrieval Augmented Generation) robusto para consulta inteligente de documentos PDF utilizando busca vetorial e modelos de linguagem modernos.
 
-Este projeto demonstra a aplicação prática de arquitetura moderna de IA combinando:
+Este projeto demonstra a aplicação prática de arquitetura de IA pronta para casos de uso avançados, combinando:
 
-- Embeddings vetoriais
-- Banco vetorial especializado
-- Busca semântica
-- Geração de resposta condicionada ao contexto
-- Containerização completa com Docker
+- **Embeddings vetoriais**
+- **Banco vetorial especializado** (Qdrant)
+- **Busca semântica isolada por sessão**
+- **Geração de resposta em tempo real (Streaming/SSE)**
+- **Memória Conversacional**
+- **Containerização completa com Docker**
 
 ---
 
 # 🎯 Objetivo
 
-Demonstrar como construir um sistema RAG modular, stateless e containerizável, pronto para evoluir para ambientes corporativos.
+Demonstrar como construir um sistema RAG modular, seguro e com uma UX premium. O foco do projeto vai além do "básico", atacando problemas reais de implementações de RAG:
 
-O foco não é apenas a funcionalidade, mas:
-
-- Organização arquitetural
-- Separação de responsabilidades
-- Escalabilidade futura
-- Reprodutibilidade do ambiente
+- **Chunking Inteligente**: Respeitando a semântica do texto.
+- **Isolamento de Contexto**: Múltiplos PDFs sem alucinações cruzadas.
+- **UX Moderna**: Respostas em *Streaming* e citações visuais de fontes.
+- **Reprodutibilidade do ambiente**
 
 ---
 
-# 🏗 Arquitetura
+# 🏗 Arquitetura & Pipeline
 
-## Pipeline de Indexação
+## Pipeline de Indexação (Upload)
+1. **PDF** → O arquivo é enviado via `multipart/form-data`.
+2. **Extração de Texto** → Leitura do Buffer via `pdfjs-dist`.
+3. **Chunking Recursivo** → Divisão inteligente do texto respeitando Parágrafos `\n\n` -> Frases `. ` -> Caracteres.
+4. **Embeddings** → Conversão do texto para vetores.
+5. **Qdrant** → Armazenamento no banco vetorial atrelado a um `docId` único.
 
-PDF → Extração de Texto → Chunking → Embeddings → Qdrant
-
-## Pipeline de Consulta
-
-Pergunta → Embedding → Busca Vetorial (Cosine) → Contexto → LLM → Resposta com Fontes
-
-O sistema utiliza o padrão clássico de RAG:
-
-Retrieval + Context Injection + Generation
+## Pipeline de Consulta (Chat)
+1. **Pergunta + Hitórico** → O usuário envia a pergunta atual junto ao histórico da conversa para manter a memória ativa.
+2. **Embedding da Pergunta** → Conversão da pergunta para localização no espaço vetorial.
+3. **Busca Vetorial Isolada** → Busca (Cosine Similarity) no Qdrant filtrando *exclusivamente* pela lista de `docIds` da sessão atual.
+4. **LLM Generation** → Injeção do Contexto Encontrado + Histórico no *Prompt* do Llama.
+5. **SSE Streaming** → A resposta é devolvida palavra por palavra em tempo real (Server-Sent Events) para a interface, junto com as **Fontes Utilizadas** (Citações).
 
 ---
 
 ## 🧩 Stack Técnica
 
-- **Node.js (Express)** — API backend
-- **MiniLM (Xenova Transformers)** — Embeddings locais (384 dimensões)
-- **Qdrant** — Banco vetorial (Cosine similarity)
-- **Llama 3.x (via Groq API)** — Large Language Model para geração
-- **pdfjs-dist** — Extração de texto
-- **Docker Compose** — Orquestração de serviços
+- **Front-end**: HTML, CSS (Vanilla, Dark Mode com Glassmorphism), Lucide Icons.
+- **Back-end API**: Node.js com Express.
+- **Embeddings Locais**: MiniLM (Xenova Transformers - 384 dimensões).
+- **Banco Vetorial**: Qdrant.
+- **LLM**: Llama 3.x (Via Groq API rápida).
+- **Extração**: pdfjs-dist.
+- **Orquestração**: Docker Compose.
 
 ---
 
-# 🏛 Estrutura do Projeto
+# 🚀 Como Rodar
 
-```
-src/
- ├── config/
- ├── routes/
- ├── services/
- ├── rag/
- └── server.js
-```
-
-Separação clara entre:
-
-- Configuração
-- Infraestrutura (LLM / Qdrant)
-- Serviços utilitários (PDF, chunking, embedding)
-- Camada RAG (orquestração)
-- Rotas HTTP
-
-Essa organização facilita:
-
-- Testabilidade
-- Evolução futura
-- Substituição de componentes (ex: trocar Groq por Azure OpenAI)
-
----
-
-# 🚀 Execução
-
-## 1️⃣ Configure variáveis
+## 1️⃣ Configure variáveis de ambiente
 
 ```bash
 cp .env.example .env
 ```
+Preencha a chave secreta `LLAMA_API_KEY` com a sua key da Groq.
 
-Preencha `LLAMA_API_KEY`.
-
-## 2️⃣ Suba tudo
+## 2️⃣ Suba os containers
 
 ```bash
 docker compose up -d --build
 ```
+*(Se preferir rodar local, suba apenas o Qdrant pelo Docker e rode `npm run dev` no Host, certificando-se de acertar a `QDRANT_URL` no `.env`)*
 
 ## 3️⃣ Acesse
 
-- App: http://localhost:3000
+- Interface Completa: http://localhost:3000
 - Qdrant Dashboard: http://localhost:6334/dashboard
-- Health: http://localhost:3000/health
 
 ---
 
-# 🔌 Endpoints
+# 🔌 API Endpoints
 
 ## POST `/pdf`
-
-Upload de PDF via multipart/form-data
-
-Field:
-
-```
-file
-```
-
-Retorno:
-
-```
-docId
-```
-
----
+Upload de documento para indexação. Deve conter o form-data `file` com mimetype `application/pdf`.
 
 ## POST `/ask`
+Endpoint principal do chat com suporte a Streaming (SSE).
 
+**Payload esperado:**
 ```json
 {
-  "question": "Pergunta aqui",
+  "question": "Qual a tese principal?",
   "topK": 5,
-  "docId": "opcional"
+  "docIds": ["id-do-pdf-123"],
+  "history": [
+    {"role": "user", "content": "olá"},
+    {"role": "assistant", "content": "como posso ajudar?"}
+  ]
 }
 ```
 
-Permite filtrar por documento específico.
+O endpoint responderá no painel de cabeçalho `text/event-stream`, retornando primeiro um objeto opcional com as `{ sources }` e subsequentemente fluxos contínuos de `{ text }` até receber a sinalização `[DONE]`.
 
 ---
 
 # 📊 Decisões Arquiteturais
 
-## 🔹 Embeddings locais
-Reduz custo operacional e facilita demonstração offline.
+## 🔹 Chunking Recursivo Semântico
+Garante que pedaços de frases não sejam amputados durante a vetorização, entregando contextos saudáveis e compreensíveis ao LLM.
 
-## 🔹 Qdrant
-Banco vetorial especializado com alta performance para similaridade.
+## 🔹 Filtro Qdrant `match: any`
+O uso do rastreio de `docIds` pelo Front-end evita o problema clássico de contaminação cruzada. Você fala *apenas* com os PDFs que você quiser durante aquela aba de conversa.
 
-## 🔹 Filtro por payload (docId)
-Permite múltiplos documentos simultaneamente sem colisão de contexto.
+## 🔹 Streaming UX
+Esperar 20 segundos por uma geração completa de LLM quebra a experiência do usuário. O uso de SSE entrega o visual de "digitando", melhorando absurdamente a percepção de performance.
 
-## 🔹 Upload em memória
-Arquitetura stateless e adequada para ambientes containerizados.
-
-## 🔹 Docker Compose
-Reprodutibilidade com único comando.
+## 🔹 Citações Visuais
+A interface revela para o usuário exatamente de qual trecho do documento o pedaço de informação foi extraído, melhorando a confiabilidade do sistema RAG.
 
 ---
 
-# 📌 Limitações
+# 📌 Limitações Atuais
 
-- Não possui OCR (PDFs escaneados não são suportados)
-- Não implementa reranking (ainda)
-- Não possui autenticação
-
----
-
-# 🔮 Roadmap
-
-- Implementar Reranking
-- OCR com Tesseract
-- Cache de embeddings
-- Observabilidade (logs estruturados + métricas)
-- Migração para Azure OpenAI
-- Versionamento de índice vetorial
-
----
-
-# 🧪 Health Check
-
-```
-GET /health
-```
+- Não possui OCR ativo (PDFs constituídos apenas como imagens não retornarão texto sem fallback com Tesseract).
+- Não implementa Reranking pós-busca semântica (embora as precisões atuais já sejam bem altas para os casos gerais).
 
 ---
 
 # 📜 Licença
-
 MIT

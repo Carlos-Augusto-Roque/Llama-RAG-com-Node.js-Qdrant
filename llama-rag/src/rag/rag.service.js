@@ -49,65 +49,66 @@ export function createRagService({ cfg, qdrant, llm }) {
     return { docId, chunksIndexed: chunks.length };
   }
 
-  async function ask(question, topK = 5, docId=null) {
+  async function ask(question, topK = 5, docIds = [], history = []) {
     await ensureCollection(qdrant, {
-    collection: cfg.qdrantCollection,
-    vectorSize: cfg.vectorSize,
-  });
+      collection: cfg.qdrantCollection,
+      vectorSize: cfg.vectorSize,
+    });
 
-  const qVec = await embed(question);
+    const qVec = await embed(question);
 
-  const filter = docId
-    ? { must: [{ key: "docId", match: { value: docId } }] }
-    : null;
+    const filter = docIds && docIds.length > 0
+      ? { must: [{ key: "docId", match: { any: docIds } }] }
+      : null;
 
-  const results = await search(qdrant, {
-    collection: cfg.qdrantCollection,
-    vector: qVec,
-    topK,
-    filter,
-  });
+    const results = await search(qdrant, {
+      collection: cfg.qdrantCollection,
+      vector: qVec,
+      topK,
+      filter,
+    });
 
-  const hits = (results || []).map((r) => ({
-    score: r.score,
-    docId: r.payload?.docId,
-    chunkIndex: r.payload?.chunkIndex,
-    content: r.payload?.content,
-  }));
+    const hits = (results || []).map((r) => ({
+      score: r.score,
+      docId: r.payload?.docId,
+      chunkIndex: r.payload?.chunkIndex,
+      content: r.payload?.content,
+    }));
 
-  const context = hits
-    .map((h, i) => `[#${i + 1} | ${h.docId} | trecho ${h.chunkIndex}] ${h.content}`)
-    .join("\n\n");
+    const context = hits
+      .map((h, i) => `[#${i + 1} | ${h.docId} | trecho ${h.chunkIndex}] ${h.content}`)
+      .join("\n\n");
 
-  const messages = [
-    { role: "system", content: "Você é um assistente útil e direto. Responda em português." },
-    {
-      role: "user",
-      content:
-`Responda usando SOMENTE os trechos abaixo como base.
+    const formattedHistory = history.map(msg =>
+      `[${msg.role === 'user' ? 'Usuário' : 'Assistente'}]: ${msg.content}`
+    ).join("\n");
+
+    const historyContext = formattedHistory ? `\n\nHISTÓRICO DA CONVERSA:\n${formattedHistory}` : "";
+
+    const messages = [
+      { role: "system", content: "Você é um assistente útil e direto. Responda em português." },
+      {
+        role: "user",
+        content:
+          `Responda usando SOMENTE os trechos abaixo como base.
 Se não houver evidência suficiente, diga que não encontrou no documento.
+${historyContext}
 
-Pergunta: ${question}
+Pergunta Atual: ${question}
 
-TRECHOS:
+TRECHOS DADOS:
 ${context}`
-    }
-  ];
+      }
+    ];
 
-  const answer = await chatAnswer(llm, {
-    model: cfg.llamaModel,
-    messages,
-    temperature: 0.3,
-  });
+    const stream = await chatAnswer(llm, {
+      model: cfg.llamaModel,
+      messages,
+      temperature: 0.3,
+      stream: true,
+    });
 
-  return {
-    answer,
-    sources: hits.map((h) => ({
-      docId: h.docId,
-      chunkIndex: h.chunkIndex,
-      score: h.score,
-    })),
-  };
+    return { stream, hits };
   }
 
   return { indexPdf, ask };

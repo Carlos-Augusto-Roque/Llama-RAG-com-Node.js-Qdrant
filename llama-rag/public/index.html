@@ -1,204 +1,699 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-br">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RAG PDF (básico)</title>
-    <style>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG Inteligente</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-panel: #1e293b;
+      --bg-input: #334155;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --ai-msg: #334155;
+      --success: #10b981;
+      --error: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Layout */
+    .sidebar {
+      width: 300px;
+      background-color: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem;
+      transition: transform 0.3s ease;
+      z-index: 10;
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Sidebar Components */
+    .brand {
+      font-size: 1.25rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 2.5rem;
+      color: var(--text);
+    }
+
+    .upload-area {
+      border: 2px dashed var(--border);
+      border-radius: 0.75rem;
+      padding: 2rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(51, 65, 85, 0.3);
+      position: relative;
+    }
+
+    .upload-area:hover {
+      border-color: var(--primary);
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .upload-area input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .upload-icon {
+      margin: 0 auto 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .status-text {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 1.5rem;
+      text-align: center;
+      background: rgba(15, 23, 42, 0.5);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Chat Area */
+    .chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      scroll-behavior: smooth;
+    }
+
+    .message {
+      display: flex;
+      gap: 1rem;
+      max-width: 800px;
+      margin: 0 auto;
+      width: 100%;
+      animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .avatar {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .user .avatar {
+      background-color: var(--border);
+      color: var(--text);
+    }
+
+    .bot .avatar {
+      background-color: var(--primary);
+      color: white;
+    }
+
+    .message-content {
+      background-color: var(--ai-msg);
+      padding: 1rem 1.25rem;
+      border-radius: 0.75rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--text);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      width: fit-content;
+    }
+
+    .user .message-content {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+    }
+
+    .bot .message-content {
+      border: 1px solid transparent;
+    }
+
+    /* Input Area */
+    .input-wrapper {
+      padding: 1.5rem 2rem;
+      background: linear-gradient(180deg, transparent, var(--bg) 20%);
+      display: flex;
+      justify-content: center;
+    }
+
+    .input-box {
+      max-width: 800px;
+      width: 100%;
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 0.5rem;
+      display: flex;
+      align-items: flex-end;
+      gap: 0.5rem;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-box:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.1);
+    }
+
+    textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+      resize: none;
+      padding: 0.75rem;
+      max-height: 200px;
+      min-height: 48px;
+      outline: none;
+      line-height: 1.5;
+    }
+
+    textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .send-btn {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 0.25rem;
+      margin-right: 0.25rem;
+      flex-shrink: 0;
+    }
+
+    .send-btn:hover:not(:disabled) {
+      background-color: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .send-btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .send-btn:disabled {
+      background-color: var(--border);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+
+    /* Typing Animation */
+    .typing {
+      display: inline-flex;
+      gap: 0.3rem;
+      align-items: center;
+      height: 1.5rem;
+    }
+
+    .dot {
+      width: 0.4rem;
+      height: 0.4rem;
+      background-color: var(--text-muted);
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out both;
+    }
+
+    .dot:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+
+    .dot:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+
+    @keyframes bounce {
+
+      0%,
+      80%,
+      100% {
+        transform: scale(0);
+      }
+
+      40% {
+        transform: scale(1);
+      }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    /* Sources Badge */
+    .sources-container {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px dashed rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .source-badge {
+      font-size: 0.7rem;
+      padding: 0.25rem 0.5rem;
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: var(--primary);
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      transition: all 0.2s;
+    }
+
+    .source-badge:hover {
+      background: rgba(59, 130, 246, 0.25);
+    }
+
+    /* Empty state */
+    .empty-state {
+      margin: auto;
+      text-align: center;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      animation: fadeIn 0.8s ease;
+    }
+
+    .empty-icon {
+      width: 5rem;
+      height: 5rem;
+      background: var(--bg-panel);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      color: var(--primary);
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+    }
+
+    .empty-state h2 {
+      font-weight: 500;
+      color: var(--text);
+      font-size: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
       body {
-        font-family: system-ui, Arial;
-        margin: 0;
-        background: #0b1220;
-        color: #e6e9f2;
-      }
-      .wrap {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 16px;
-      }
-      .box {
-        border: 1px solid #223055;
-        background: #111a2e;
-        border-radius: 12px;
-        overflow: hidden;
-      }
-      .row {
-        display: flex;
-        gap: 10px;
-        padding: 12px;
-        border-bottom: 1px solid #223055;
-        align-items: center;
-      }
-      input[type="file"] {
-        color: #e6e9f2;
-      }
-      .chat {
-        height: 62vh;
-        overflow: auto;
-        padding: 16px;
-        display: flex;
         flex-direction: column;
-        gap: 10px;
       }
-      .msg {
-        max-width: 82%;
-        padding: 10px 12px;
-        border-radius: 12px;
-        white-space: pre-wrap;
-      }
-      .user {
-        align-self: flex-end;
-        background: #2563eb;
-      }
-      .bot {
-        align-self: flex-start;
-        background: #1f2a44;
-        border: 1px solid #2b3a66;
-      }
-      .bottom {
-        display: flex;
-        gap: 10px;
-        padding: 12px;
-        border-top: 1px solid #223055;
-      }
-      textarea {
-        flex: 1;
-        resize: none;
-        height: 46px;
-        padding: 10px 12px;
-        border-radius: 10px;
-        border: 1px solid #2b3a66;
-        background: #0b1220;
-        color: #e6e9f2;
-      }
-      button {
-        border: none;
-        border-radius: 10px;
-        background: #22c55e;
-        font-weight: 800;
-        cursor: pointer;
-        padding: 10px 14px;
-      }
-      button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-      .status {
-        font-size: 12px;
-        opacity: 0.8;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <div class="box">
-        <div class="row">
-          <input id="pdf" type="file" accept="application/pdf" multiple />
-          <button id="upload">Enviar PDF</button>
-          <span id="status" class="status">Nenhum PDF enviado.</span>
-        </div>
 
-        <div id="chat" class="chat"></div>
+      .sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 1rem;
+      }
 
-        <div class="bottom">
-          <textarea
-            id="q"
-            placeholder="Pergunte sobre o PDF... (Enter envia)"
-          ></textarea>
-          <button id="ask">Perguntar</button>
+      .brand {
+        margin-bottom: 1rem;
+      }
+
+      .status-text {
+        margin-top: 1rem;
+        min-height: 40px;
+      }
+
+      .upload-area {
+        padding: 1rem;
+      }
+
+      .chat-container {
+        padding: 1rem;
+      }
+
+      .input-wrapper {
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <i data-lucide="bot" style="color: var(--primary)"></i>
+      <span>Llama RAG Doc</span>
+    </div>
+
+    <div class="upload-area">
+      <input id="pdf" type="file" accept="application/pdf" multiple />
+      <i data-lucide="file-up" class="upload-icon" size="28"></i>
+      <p style="font-weight: 500; margin-bottom: 0.25rem">Upload Documentos</p>
+      <p style="font-size: 0.75rem; color: var(--text-muted)">Arraste PDFs ou clique aqui</p>
+    </div>
+
+    <div id="status" class="status-text">Faça o upload de documentos para começar o chat.</div>
+
+    <button id="new-chat"
+      style="margin-top: 1.5rem; width: 100%; padding: 0.75rem; background: var(--border); color: var(--text); border: none; border-radius: 0.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: background 0.2s;">
+      <i data-lucide="plus-circle" size="18"></i>
+      Nova Conversa
+    </button>
+  </aside>
+
+  <main class="main-content">
+    <div id="chat" class="chat-container">
+      <div id="empty-state" class="empty-state">
+        <div class="empty-icon">
+          <i data-lucide="sparkles" size="36"></i>
         </div>
+        <h2>Como posso ajudar?</h2>
+        <p>Faça upload de um PDF à esquerda e comece a fazer perguntas sobre seu conteúdo. O assistente usará os
+          documentos como base de conhecimento.</p>
       </div>
     </div>
 
-    <script>
-      const pdfEl = document.getElementById("pdf");
-      const uploadBtn = document.getElementById("upload");
-      const statusEl = document.getElementById("status");
+    <div class="input-wrapper">
+      <div class="input-box">
+        <textarea id="q" rows="1" placeholder="Pergunte qualquer coisa sobre seus documentos..."></textarea>
+        <button id="ask" class="send-btn" title="Enviar mensagem">
+          <i data-lucide="send" size="18"></i>
+        </button>
+      </div>
+    </div>
+  </main>
 
-      const chatEl = document.getElementById("chat");
-      const qEl = document.getElementById("q");
-      const askBtn = document.getElementById("ask");
+  <script>
+    // Initialize icons
+    lucide.createIcons();
 
-      function add(role, text) {
-        const div = document.createElement("div");
-        div.className = "msg " + (role === "user" ? "user" : "bot");
-        div.textContent = text;
-        chatEl.appendChild(div);
-        chatEl.scrollTop = chatEl.scrollHeight;
+    const pdfEl = document.getElementById("pdf");
+    const statusEl = document.getElementById("status");
+    const chatEl = document.getElementById("chat");
+    const qEl = document.getElementById("q");
+    const askBtn = document.getElementById("ask");
+    const emptyState = document.getElementById("empty-state");
+    const newChatBtn = document.getElementById("new-chat");
+
+    let currentDocIds = [];
+    let conversationHistory = [];
+
+    // Reset Chat Session
+    newChatBtn.addEventListener("click", () => {
+      currentDocIds = [];
+      conversationHistory = [];
+      chatEl.innerHTML = `
+        <div id="empty-state" class="empty-state">
+          <div class="empty-icon">
+            <i data-lucide="sparkles" size="36"></i>
+          </div>
+          <h2>Como posso ajudar?</h2>
+          <p>Faça upload de um PDF à esquerda e comece a fazer perguntas sobre seu conteúdo. O assistente usará os documentos como base de conhecimento.</p>
+        </div>
+      `;
+      const emptyStateEl = document.getElementById("empty-state");
+      // Re-assign necessary reference if deleted
+      lucide.createIcons();
+      statusEl.innerHTML = "Sessão reiniciada. Faça upload de novos documentos.";
+    });
+
+    // Auto-resize textarea
+    qEl.addEventListener('input', function () {
+      this.style.height = 'auto';
+      this.style.height = (this.scrollHeight) + 'px';
+      if (this.value.trim() === '') {
+        this.style.height = 'auto';
+      }
+    });
+
+    function createMessageElement(role, content, isHtml = false) {
+      if (emptyState) emptyState.style.display = 'none';
+
+      const msgDiv = document.createElement("div");
+      msgDiv.className = `message ${role}`;
+
+      const avatarDiv = document.createElement("div");
+      avatarDiv.className = "avatar";
+
+      const icon = document.createElement("i");
+      icon.setAttribute("data-lucide", role === "user" ? "user" : "bot");
+      icon.setAttribute("size", "20");
+      avatarDiv.appendChild(icon);
+
+      const contentDiv = document.createElement("div");
+      contentDiv.className = "message-content";
+      if (isHtml) {
+        contentDiv.innerHTML = content;
+      } else {
+        contentDiv.textContent = content;
+        contentDiv.style.whiteSpace = "pre-wrap";
       }
 
-      uploadBtn.addEventListener("click", async () => {
-        const files = pdfEl.files;
-        if (!files.length) return alert("Selecione ao menos um PDF.");
+      msgDiv.appendChild(avatarDiv);
+      msgDiv.appendChild(contentDiv);
 
-        uploadBtn.disabled = true;
-        statusEl.textContent = "Enviando e indexando PDFs...";
+      return msgDiv;
+    }
 
-        try {
-          for (let file of files) {
-            const fd = new FormData();
-            fd.append("file", file);
+    function addMessage(role, text) {
+      const msgDiv = createMessageElement(role, text);
+      chatEl.appendChild(msgDiv);
+      lucide.createIcons();
+      chatEl.scrollTo({ top: chatEl.scrollHeight, behavior: 'smooth' });
+      return msgDiv;
+    }
 
-            const res = await fetch("/pdf", { method: "POST", body: fd });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Erro no upload");
+    function showTypingIndicator() {
+      const html = `<div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+      const msgDiv = createMessageElement("bot", html, true);
+      chatEl.appendChild(msgDiv);
+      lucide.createIcons();
+      chatEl.scrollTo({ top: chatEl.scrollHeight, behavior: 'smooth' });
+      return msgDiv;
+    }
 
-            add(
-              "assistant",
-              `PDF "${file.name}" indexado ✅ (${data.chunksIndexed} trechos)`,
-            );
-          }
+    // Handles the file upload logic seamlessly from the UI drag and drop/click area
+    pdfEl.addEventListener("change", async () => {
+      const files = pdfEl.files;
+      if (!files.length) return;
 
-          statusEl.textContent = "Todos os PDFs indexados com sucesso.";
-        } catch (e) {
-          statusEl.textContent = "Falha ao indexar PDFs ❌";
-          alert(e.message || e);
-        } finally {
-          uploadBtn.disabled = false;
-        }
-      });
+      statusEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:0.5rem;color:var(--primary)">
+          <i data-lucide="loader-2" class="lucide-spin" size="16"></i> Enviando e indexando...
+        </div>`;
+      lucide.createIcons();
 
-      async function ask() {
-        const question = qEl.value.trim();
-        if (!question) return;
+      try {
+        for (let file of files) {
+          const fd = new FormData();
+          fd.append("file", file);
 
-        qEl.value = "";
-        add("user", question);
-
-        askBtn.disabled = true;
-        const loading = document.createElement("div");
-        loading.className = "msg bot";
-        loading.textContent = "Buscando no PDF e respondendo...";
-        chatEl.appendChild(loading);
-        chatEl.scrollTop = chatEl.scrollHeight;
-
-        try {
-          const res = await fetch("/ask", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ question, topK: 5 }),
-          });
+          const res = await fetch("/pdf", { method: "POST", body: fd });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "Erro no /ask");
+          if (!res.ok) throw new Error(data.error || "Erro no upload");
 
-          loading.textContent = data.answer || "(sem resposta)";
-        } catch (e) {
-          loading.textContent = "Erro: " + (e.message || e);
-        } finally {
-          askBtn.disabled = false;
-          qEl.focus();
+          currentDocIds.push(data.docId);
+
+          addMessage("bot", `📄 PDF "${file.name}" importado com sucesso!\nForam indexados ${data.chunksIndexed} trechos.`);
         }
+        statusEl.innerHTML = `<span style="color:var(--success)">Documentos indexados com sucesso!</span>`;
+      } catch (e) {
+        statusEl.innerHTML = `<span style="color:var(--error)">Falha ao indexar PDFs ❌</span>`;
+        addMessage("bot", "❌ Erro ao processar documento: " + (e.message || e));
+      } finally {
+        pdfEl.value = ""; // Reset file input
       }
+    });
 
-      askBtn.addEventListener("click", ask);
-      qEl.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          ask();
+    async function ask() {
+      const question = qEl.value.trim();
+      if (!question) return;
+
+      qEl.value = "";
+      qEl.style.height = 'auto'; // Reset height
+
+      addMessage("user", question);
+
+      // Store history (we send the previous messages, not including the current question)
+      const outgoingHistory = [...conversationHistory];
+
+      // Add current to history
+      conversationHistory.push({ role: 'user', content: question });
+
+      askBtn.disabled = true;
+      const loadingDiv = showTypingIndicator();
+
+      try {
+        const res = await fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question, topK: 5, docIds: currentDocIds, history: outgoingHistory }),
+        });
+
+        if (!res.ok) throw new Error("Erro no servidor");
+
+        // Remove loading state immediately to start typing
+        loadingDiv.remove();
+
+        // Prepare the message bubble
+        const msgDiv = createMessageElement("bot", "");
+        chatEl.appendChild(msgDiv);
+        const contentDiv = msgDiv.querySelector('.message-content');
+        contentDiv.style.whiteSpace = "pre-wrap";
+        lucide.createIcons();
+
+        let answerText = "";
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunkStr = decoder.decode(value, { stream: true });
+          const lines = chunkStr.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
+
+              try {
+                const parsed = JSON.parse(data);
+
+                if (parsed.sources && parsed.sources.length > 0) {
+                  const sourcesDiv = document.createElement("div");
+                  sourcesDiv.className = "sources-container";
+                  parsed.sources.forEach((src, idx) => {
+                    if (src.score > 0.5) { // Only show somewhat relevant sources
+                      const badge = document.createElement("div");
+                      badge.className = "source-badge";
+                      badge.title = `Score: ${(src.score * 100).toFixed(1)}%`;
+                      badge.innerHTML = `<i data-lucide="file-text" size="12"></i> ${src.docId.split('-').pop()} (Trecho ${src.chunkIndex})`;
+                      sourcesDiv.appendChild(badge);
+                    }
+                  });
+                  if (sourcesDiv.children.length > 0) {
+                    contentDiv.parentElement.appendChild(sourcesDiv);
+                    lucide.createIcons();
+                  }
+                }
+
+                if (parsed.text) {
+                  answerText += parsed.text;
+                  contentDiv.textContent = answerText;
+                  chatEl.scrollTop = chatEl.scrollHeight;
+                }
+              } catch (e) { }
+            }
+          }
         }
-      });
 
-      add("assistant", "1) Envie um PDF  2) Faça perguntas sobre ele.");
-    </script>
-  </body>
+        if (!answerText) {
+          answerText = "Desculpe, não consegui formular uma resposta baseada nos documentos.";
+          contentDiv.textContent = answerText;
+        }
+
+        // Add bot answer to history
+        conversationHistory.push({ role: 'assistant', content: answerText });
+      } catch (e) {
+        loadingDiv.remove();
+        addMessage("bot", "⚠️ Ocorreu um erro no sistema: " + (e.message || e));
+      } finally {
+        askBtn.disabled = false;
+        qEl.focus();
+      }
+    }
+
+    askBtn.addEventListener("click", ask);
+
+    qEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        ask();
+      }
+    });
+
+    // Add CSS for spinning icon
+    const style = document.createElement('style');
+    style.textContent = `
+      .lucide-spin { animation: spin 2s linear infinite; }
+      @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body>
+
 </html>
