@@ -1,4 +1,4 @@
-# 🧠 Llama-RAG — Retrieval Augmented Generation Profissional (Node.js + Qdrant)
+# 🧠 Llama-RAG — Retrieval Augmented Generation (Node.js + Qdrant)
 
 Implementação de um backend e frontend RAG (Retrieval Augmented Generation) robusto para consulta inteligente de documentos PDF utilizando busca vetorial e modelos de linguagem modernos.
 
@@ -34,7 +34,7 @@ Demonstrar como construir um sistema RAG modular, seguro e com uma UX premium. O
 5. **Qdrant** → Armazenamento no banco vetorial atrelado a um `docId` único.
 
 ## Pipeline de Consulta (Chat)
-1. **Pergunta + Hitórico** → O usuário envia a pergunta atual junto ao histórico da conversa para manter a memória ativa.
+1. **Pergunta + Histórico** → O usuário envia a pergunta atual junto ao histórico da conversa para manter a memória ativa.
 2. **Embedding da Pergunta** → Conversão da pergunta para localização no espaço vetorial.
 3. **Busca Vetorial Isolada** → Busca (Cosine Similarity) no Qdrant filtrando *exclusivamente* pela lista de `docIds` da sessão atual.
 4. **LLM Generation** → Injeção do Contexto Encontrado + Histórico no *Prompt* do Llama.
